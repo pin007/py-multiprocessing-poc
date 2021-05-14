@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+
+  ws-mock:
+    build:
+      context: ws-mock
+    container_name: ws-mock
+    environment:
+      DEBUG: 'false'
+    ports:
+      - '3000:3000'
+
+  client:
+    build:
+      context: client
+    container_name: client
+    depends_on:
+      - ws-mock
+    environment:
+      DEBUG: 'true'
+      SERVER_URL: 'ws://ws-mock:3000'
+      PING_INTERVAL: 10
+      PING_TIMEOUT: 8

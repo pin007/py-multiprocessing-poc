@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>WebSockets Client</title>
+    <style>
+      * {
+        font-family: "Verdana", "Helveic", sans-serif;
+        font-size: 10pt;
+        padding: 0;
+        margin: 0;
+      }
+      p {
+        line-height: 13pt;
+      }
+      #client {
+        width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      #console {
+        background: #F5F5F5;
+        border: 1px solid #BDBDBD;
+        border-radius: 5px;
+        height: 160px;
+        margin-top: 10pt;
+        overflow-y: scroll;
+        padding: 5pt;
+      }
+      input {
+        border-radius: 2px;
+        border: 1px solid #BDBDBD;
+        margin-top: 10pt;
+        padding: 2pt 5pt;
+        width: 400px;
+      }
+      label {
+        width: 80px;
+        display: block;
+        float: left;
+        margin-top: 10pt;
+        padding: 2pt 0pt;
+      }
+    </style>
+  </head>
+<body>
+  <div id="client">
+    <div id="console"></div>
+    <div>
+      <label id="status" for="server-url">Server:</label>
+      <input type="text" id="server-url" value="ws://127.0.0.1:3000" />
+    </div>
+    <div>
+      <label for="input">Message:</label>
+      <input type="text" id="input" disabled="disabled" />
+    </div>
+  </div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.slim.min.js">
+  </script>
+  <script>
+    $(function () {
+      "use strict";
+      var wsconsole = $('#console');
+      var input = $('#input');
+      var status = $('#status');
+      var serverUrl = $('#server-url');
+      var connection = null;
+
+      window.WebSocket = window.WebSocket || window.MozWebSocket;
+      if (!window.WebSocket) {
+        wsconsole.html($('<p>',{text: 'Websockets unsupported by browser!'}));
+        return;
+      }
+
+      serverUrl.keydown(function(e) {
+        if (e.keyCode === 13) {
+          console.log('foobar')
+          var server = $(this).val();
+          if (!server) {
+            return;
+          }
+
+          status.html('<span style="font-weight: bold; color: #0288d1">Connecting:  </span>');
+
+          connection = new WebSocket(server);
+
+          connection.onopen = function () {
+            serverUrl.attr('disabled', 'disabled');
+            status.html('<span style="font-weight: bold; color: #16a085">Connected: </span>');
+          };
+
+          connection.onerror = function (error) {
+            input.attr('disabled', 'disabled');
+            serverUrl.removeAttr('disabled');
+            status.html('<span style="font-weight: bold; color: #c2185b">Error: </span>');
+          };
+
+          connection.onmessage = function (message) {
+            try {
+              var json = JSON.parse(message.data);
+            } catch (e) {
+              console.log('Invalid JSON: ', message.data);
+              return;
+            }
+
+            if (json.type === 'ehlo') {
+              input.removeAttr('disabled').focus();
+              addMessage('server', 'ehlo', '#c2185b', new Date());
+            } else if (json.type === 'message') {
+              addMessage(
+                  json.data.author,
+                  json.data.text,
+                  json.data.author === 'worker' ? '#0288d1' : '#16a085',
+                  new Date());
+            } else {
+              addMessage('wrong format', message.data, '#f57c00', new Date());
+            }
+
+          };
+
+        }
+      })
+
+      /** Send message on pressed Enter */
+      input.keydown(function(e) {
+        if (e.keyCode === 13) {
+          var msg = $(this).val();
+          if (!msg) {
+            return;
+          }
+          connection.send(JSON.stringify({'type': 'message', 'data': {'text': msg}}));
+          $(this).val('');
+        }
+      });
+
+      /** Add message to the console */
+      function addMessage(author, message, color, dt) {
+        wsconsole.prepend('<p><span style="color:' + color + '">'
+            + author + '</span> @ '
+            + (dt.getHours() < 10 ? '0'
+                + dt.getHours() : dt.getHours()) + ':'
+            + (dt.getMinutes() < 10 ? '0'
+                + dt.getMinutes() : dt.getMinutes()) + ':'
+            + (dt.getSeconds() < 10 ? '0'
+                + dt.getSeconds() : dt.getSeconds()) + '> '
+            + message + '</p>');
+      }
+    });
+  </script>
+</body>
+</html>
